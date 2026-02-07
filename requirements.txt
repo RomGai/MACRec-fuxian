@@ -16,7 +16,7 @@ trl>=0.7.6
 peft>=0.7.1
 jsonlines>=4.0.0
 torchmetrics>=1.2.1
-sentencepiece==0.1.99
+sentencepiece==0.2.1
 protobuf==5.29.6
 wikipedia>=1.4.0
 streamlit>=1.31.0
