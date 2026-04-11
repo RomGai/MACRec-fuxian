@@ -4,7 +4,7 @@ import subprocess
 import pandas as pd
 import numpy as np
 from loguru import logger
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 from macrec.utils import append_his_info
 

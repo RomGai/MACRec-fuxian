@@ -2,7 +2,7 @@
 
 import os
 import json
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 def read_prompts(config_file: str) -> dict[str, PromptTemplate | str]:
     """Read prompt templates from config file.
