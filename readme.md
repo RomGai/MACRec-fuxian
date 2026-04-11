@@ -148,6 +148,41 @@ Note: this build script intentionally does **not** use the `preferences` field. 
 The default agent configs in `config/agents/*.json` can be switched to open-source inference with `Qwen/Qwen3-8B`.
 In this repo, `manager_thought` uses Qwen chat-template generation mode (`apply_chat_template(..., enable_thinking=True)`), while JSON-mode agents keep structured decoding flow.
 
+
+
+### Standalone pipeline (no MACRec/langchain dependency)
+
+If you prefer a one-file pipeline independent of MACRec internals, run:
+
+```shell
+python scripts/standalone_amazon_pipeline.py \
+  --query_file amazon_beauty/query_data1.csv \
+  --metadata_file amazon_beauty/metadata.csv \
+  --topks 10 20 40 \
+  --output_file run/amazon_beauty/standalone_retrieval.jsonl \
+  --metrics_file run/amazon_beauty/standalone_metrics.json
+```
+
+Optional: add `--use_qwen_rerank --enable_thinking` to rerank the preselected candidates with `Qwen/Qwen3-8B`.
+
+
+
+### Strict MACRec-like standalone agent loop
+
+If you want a standalone implementation that mimics MACRec's thought-action-observation loop (independent code), run:
+
+```shell
+python scripts/standalone_macrec_strict_pipeline.py \
+  --query_file amazon_beauty/query_data1.csv \
+  --metadata_file amazon_beauty/metadata.csv \
+  --topks 10 20 40 \
+  --policy heuristic \
+  --output_file run/amazon_beauty/strict_standalone.jsonl \
+  --metrics_file run/amazon_beauty/strict_standalone_metrics.json
+```
+
+Switch to Qwen manager policy by using `--policy qwen --enable_thinking`.
+
 ### Run with the web demo
 
 Use the following to run the web demo:
