@@ -178,6 +178,7 @@ class StrictStandaloneAgent:
 
         for step in range(1, self.max_step + 1):
             action, arg = self._manager_action(query, history_text, step, state.scratchpad)
+            print(f"[Agent] Step {step}/{self.max_step} -> action={action}, argument={arg[:80] if arg else ''}")
             if action.lower() == 'search':
                 cand_ids = self.corpus.retrieve(query=arg or query, history_text=history_text, blocked_ids=blocked, topn=preselect_k)
                 obs = f"searched {len(cand_ids)} candidates"
@@ -207,9 +208,12 @@ class StrictStandaloneAgent:
 
 
 def run(args):
+    print('[Progress] Stage 1/5: loading query data...')
     qdf = pd.read_csv(args.query_file)
     qdf['id'] = qdf['id'].astype(str)
+    print('[Progress] Stage 2/5: building metadata corpus and TF-IDF index...')
     corpus = Corpus(args.metadata_file)
+    print('[Progress] Stage 3/5: initializing strict standalone agent...')
     agent = StrictStandaloneAgent(
         corpus=corpus,
         policy=args.policy,
@@ -221,6 +225,7 @@ def run(args):
     topks = sorted(set(args.topks))
     maxk = max(topks)
     n = len(qdf) if args.max_samples <= 0 else min(len(qdf), args.max_samples)
+    print(f'[Progress] Stage 4/5: start inference for {n} users...')
 
     hr = {k: 0.0 for k in topks}
     ndcg = {k: 0.0 for k in topks}
@@ -231,13 +236,25 @@ def run(args):
         target = row['id']
         query = safe_text(row.get('new_query', '')) or safe_text(row.get('query', ''))
         history_ids = [x.strip() for x in safe_text(row.get('remaining_interaction_string', '')).split('|') if x.strip()]
+        print(f"\n[User {i + 1}/{n}] user_id={safe_text(row.get('user_id', ''))}, target_id={target}")
+        print(f"[User {i + 1}/{n}] Running retrieval/ranking...")
 
         rank_list = agent.run_one(query=query, history_ids=history_ids, preselect_k=args.preselect_k, out_k=maxk)
         rank = rank_list.index(target) + 1 if target in rank_list else 0
+        print(f"[User {i + 1}/{n}] target_rank={rank if rank > 0 else 'not_in_topk'}")
 
         for k in topks:
             hr[k] += 1.0 if 0 < rank <= k else 0.0
             ndcg[k] += ndcg_at(rank, k)
+
+        seen = i + 1
+        avg_hr = {f'HR@{k}': hr[k] / seen for k in topks}
+        avg_ndcg = {f'NDCG@{k}': ndcg[k] / seen for k in topks}
+        print(
+            f"[User {seen}/{n}] Processed-average metrics: "
+            f"HR={json.dumps(avg_hr, ensure_ascii=False)} | "
+            f"NDCG={json.dumps(avg_ndcg, ensure_ascii=False)}"
+        )
 
         rows.append({
             'row_index': i,
@@ -264,6 +281,7 @@ def run(args):
     with open(args.metrics_file, 'w', encoding='utf-8') as f:
         json.dump(metrics, f, ensure_ascii=False, indent=2)
 
+    print('[Progress] Stage 5/5: writing outputs completed.')
     print(json.dumps(metrics, ensure_ascii=False, indent=2))
 
 
