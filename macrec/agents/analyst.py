@@ -197,7 +197,7 @@ class Analyst(ToolAgent):
         return self(analyse_type=analyse_type, id=id)
 
 if __name__ == '__main__':
-    from langchain.prompts import PromptTemplate
+    from langchain_core.prompts import PromptTemplate
     from macrec.utils import init_openai_api, read_prompts
     init_openai_api(read_json('config/api-config.json'))
     prompts = read_prompts('config/prompts/old_system_prompt/react_analyst.json')
