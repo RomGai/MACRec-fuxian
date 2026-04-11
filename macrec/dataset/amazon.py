@@ -6,7 +6,7 @@ import gzip
 import subprocess
 from typing import Generator
 from loguru import logger
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 from macrec.utils import append_his_info
 

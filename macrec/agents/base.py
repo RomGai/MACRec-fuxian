@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from loguru import logger
 from typing import Any, Optional, TYPE_CHECKING
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 from macrec.llms import BaseLLM, AnyOpenAILLM, OpenSourceLLM
 from macrec.tools import TOOL_MAP, Tool
