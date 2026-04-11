@@ -10,3 +10,5 @@ from macrec.tasks.test import TestTask
 from macrec.tasks.feedback import FeedbackTask
 
 from macrec.tasks.rlhf import RLHFTrainingTask
+
+from macrec.tasks.amazon_meta_retrieval import AmazonMetaRetrievalTask
