@@ -98,6 +98,56 @@ python main.py --main Evaluate --data_file data/ml-100k/test.csv --system collab
 
 You can refer to the `scripts/` folder for some useful scripts.
 
+
+### Evaluate retrieval on `query_data1.csv` + `metadata.csv`
+
+For datasets like `amazon_beauty/`, you can run the retrieval-based recommendation evaluation directly from full metadata:
+
+```shell
+python main.py --main AmazonMetaRetrieval \
+  --query_file amazon_beauty/query_data1.csv \
+  --metadata_file amazon_beauty/metadata.csv \
+  --topks 10 20 40 \
+  --output_file run/amazon_beauty/retrieval_top40.jsonl
+```
+
+This task combines query text and historical interacted item profiles to retrieve from the full metadata pool, then reports `HR@10/20/40` and `NDCG@10/20/40` using whether the target item is retrieved and its rank position.
+
+
+
+### Use native MACRec agent policy on `query_data1.csv` + `metadata.csv`
+
+If you want to run **repository-native agent reasoning policy** (Manager/Searcher/Analyst) rather than a fixed heuristic policy:
+
+1. Build an `sr`-style evaluation file from `query_data1.csv` + `metadata.csv`:
+
+```shell
+python scripts/build_agent_sr_data_from_query.py \
+  --query_file amazon_beauty/query_data1.csv \
+  --metadata_file amazon_beauty/metadata.csv \
+  --output_file run/amazon_beauty/agent_sr_eval.csv \
+  --n_candidate 40
+```
+
+2. Run native MACRec evaluation on the generated file:
+
+```shell
+python main.py --main Evaluate \
+  --data_file run/amazon_beauty/agent_sr_eval.csv \
+  --system collaboration \
+  --system_config config/systems/collaboration/reflect_analyse_search.json \
+  --task sr --topks [10,20,40]
+```
+
+Note: this build script intentionally does **not** use the `preferences` field. The agent receives the current query requirement and historical interactions, then infers user intent by itself.
+
+
+
+### Qwen3-8B open-source inference backend
+
+The default agent configs in `config/agents/*.json` can be switched to open-source inference with `Qwen/Qwen3-8B`.
+In this repo, `manager_thought` uses Qwen chat-template generation mode (`apply_chat_template(..., enable_thinking=True)`), while JSON-mode agents keep structured decoding flow.
+
 ### Run with the web demo
 
 Use the following to run the web demo:
