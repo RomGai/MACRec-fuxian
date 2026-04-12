@@ -2,7 +2,7 @@ import tiktoken
 from enum import Enum
 from loguru import logger
 from transformers import AutoTokenizer
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 from macrec.agents.base import Agent
 from macrec.llms import AnyOpenAILLM
