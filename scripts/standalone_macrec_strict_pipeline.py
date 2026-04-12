@@ -22,8 +22,6 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import linear_kernel
 
 
 class WikipediaTool:
@@ -107,15 +105,23 @@ class Corpus:
         self.df = df
         self.id_to_doc = dict(zip(df['id'].tolist(), df['doc_text'].tolist()))
         self.id_to_idx = {iid: i for i, iid in enumerate(df['id'].tolist())}
-        self.vec = TfidfVectorizer(lowercase=True, stop_words='english', max_features=120000)
-        self.X = self.vec.fit_transform(df['doc_text'])
+        self._token_pattern = re.compile(r'[a-z0-9]+')
+        self.doc_terms = [set(self._token_pattern.findall(t.lower())) for t in df['doc_text'].tolist()]
+
+    def _overlap_score(self, query_terms: set[str], doc_terms: set[str]) -> float:
+        if not query_terms:
+            return 0.0
+        return len(query_terms & doc_terms) / len(query_terms)
+
+    def _terms(self, text: str) -> set[str]:
+        return set(self._token_pattern.findall(text.lower()))
 
     def retrieve(self, query: str, history_text: str, blocked_ids: set[str], topn: int) -> list[str]:
-        q = self.vec.transform([query])
-        s = 0.75 * linear_kernel(q, self.X).ravel()
-        if history_text:
-            h = self.vec.transform([history_text])
-            s += 0.25 * linear_kernel(h, self.X).ravel()
+        q_terms = self._terms(query)
+        h_terms = self._terms(history_text) if history_text else set()
+        s = np.array([0.75 * self._overlap_score(q_terms, terms) for terms in self.doc_terms], dtype=float)
+        if h_terms:
+            s += np.array([0.25 * self._overlap_score(h_terms, terms) for terms in self.doc_terms], dtype=float)
         for iid in blocked_ids:
             j = self.id_to_idx.get(iid)
             if j is not None:
@@ -126,14 +132,15 @@ class Corpus:
         return self.df.iloc[idx]['id'].tolist()
 
     def score_candidates(self, query: str, history_text: str, candidates: list[str]) -> list[tuple[str, float]]:
-        docs = [self.id_to_doc[iid] for iid in candidates]
-        Xc = self.vec.transform(docs)
-        q = self.vec.transform([query])
-        s = 0.75 * linear_kernel(q, Xc).ravel()
-        if history_text:
-            h = self.vec.transform([history_text])
-            s += 0.25 * linear_kernel(h, Xc).ravel()
-        pairs = list(zip(candidates, s.tolist()))
+        q_terms = self._terms(query)
+        h_terms = self._terms(history_text) if history_text else set()
+        pairs = []
+        for iid in candidates:
+            terms = self.doc_terms[self.id_to_idx[iid]]
+            score = 0.75 * self._overlap_score(q_terms, terms)
+            if h_terms:
+                score += 0.25 * self._overlap_score(h_terms, terms)
+            pairs.append((iid, float(score)))
         pairs.sort(key=lambda x: x[1], reverse=True)
         return pairs
 
@@ -352,7 +359,7 @@ def run(args):
     print('[Progress] Stage 1/5: loading query data...')
     qdf = pd.read_csv(args.query_file)
     qdf['id'] = qdf['id'].astype(str)
-    print('[Progress] Stage 2/5: building metadata corpus and TF-IDF index...')
+    print('[Progress] Stage 2/5: building metadata corpus (non-TF-IDF lexical index)...')
     corpus = Corpus(args.metadata_file)
     print('[Progress] Stage 3/5: initializing strict standalone agent...')
     agent = StrictStandaloneAgent(
