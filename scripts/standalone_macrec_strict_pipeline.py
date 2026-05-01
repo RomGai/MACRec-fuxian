@@ -16,6 +16,7 @@ import argparse
 import json
 import math
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
@@ -380,6 +381,7 @@ def run(args):
     hr = {k: 0.0 for k in topks}
     ndcg = {k: 0.0 for k in topks}
     rows = []
+    query_times = []
 
     for i in range(n):
         row = qdf.iloc[i]
@@ -389,9 +391,13 @@ def run(args):
         print(f"\n[User {i + 1}/{n}] user_id={safe_text(row.get('user_id', ''))}, target_id={target}")
         print(f"[User {i + 1}/{n}] Running retrieval/ranking...")
 
+        query_start = time.perf_counter()
         rank_list = agent.run_one(query=query, history_ids=history_ids, preselect_k=args.preselect_k, out_k=maxk)
+        query_elapsed = time.perf_counter() - query_start
+        query_times.append(query_elapsed)
         rank = rank_list.index(target) + 1 if target in rank_list else 0
         print(f"[User {i + 1}/{n}] target_rank={rank if rank > 0 else 'not_in_topk'}")
+        print(f"[User {i + 1}/{n}] elapsed_seconds={query_elapsed:.4f}")
 
         for k in topks:
             hr[k] += 1.0 if 0 < rank <= k else 0.0
@@ -403,7 +409,8 @@ def run(args):
         print(
             f"[User {seen}/{n}] Processed-average metrics: "
             f"HR={json.dumps(avg_hr, ensure_ascii=False)} | "
-            f"NDCG={json.dumps(avg_ndcg, ensure_ascii=False)}"
+            f"NDCG={json.dumps(avg_ndcg, ensure_ascii=False)} | "
+            f"AVG_TIME_SEC={sum(query_times) / seen:.4f}"
         )
 
         rows.append({
@@ -412,6 +419,7 @@ def run(args):
             'target_id': target,
             'target_rank': rank,
             'recommendation_list': rank_list,
+            'elapsed_seconds': query_elapsed,
         })
 
     metrics = {
@@ -420,6 +428,10 @@ def run(args):
         'topks': topks,
         'HR': {f'HR@{k}': hr[k] / max(n, 1) for k in topks},
         'NDCG': {f'NDCG@{k}': ndcg[k] / max(n, 1) for k in topks},
+        'timing': {
+            'avg_seconds_per_query': (sum(query_times) / max(n, 1)) if query_times else 0.0,
+            'total_seconds': sum(query_times),
+        },
     }
 
     Path(args.output_file).parent.mkdir(parents=True, exist_ok=True)
